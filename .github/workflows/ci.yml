@@ -18,15 +18,18 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install deps
+      - name: Install deps (mobile)
+        working-directory: mobile
         run: |
           npm ci
 
-      - name: Lint
+      - name: Lint (mobile)
+        working-directory: mobile
         run: |
           npm run lint --if-present
 
       - name: Supabase smoke tests
+        working-directory: mobile
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
@@ -44,4 +47,4 @@ jobs:
 
       - name: Deno tests (edge function libs)
         run: |
-          deno test supabase/functions --fail-fast
+          deno test mobile/supabase/functions --fail-fast
