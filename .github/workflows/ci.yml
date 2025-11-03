@@ -1,0 +1,47 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps
+        run: |
+          npm ci
+
+      - name: Lint
+        run: |
+          npm run lint --if-present
+
+      - name: Supabase smoke tests
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          SUPABASE_TEST_EMAIL: ${{ secrets.SUPABASE_TEST_EMAIL }}
+          SUPABASE_TEST_PASSWORD: ${{ secrets.SUPABASE_TEST_PASSWORD }}
+          CRON_SECRET: ${{ secrets.SUPABASE_CRON_SECRET }}
+        run: |
+          node supabase/scripts/smoke-ai-chat.mjs "CI health check"
+          node supabase/scripts/smoke-daily-reports.mjs
+
+      - name: Setup Deno
+        uses: denoland/setup-deno@v1
+        with:
+          deno-version: v1.x
+
+      - name: Deno tests (edge function libs)
+        run: |
+          deno test supabase/functions --fail-fast
