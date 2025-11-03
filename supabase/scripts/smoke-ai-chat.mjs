@@ -1,5 +1,4 @@
 /* eslint-disable no-console */
-import { createClient } from "@supabase/supabase-js";
 
 function getEnv(key, required = true) {
   const value = (process.env[key] || "").trim();
@@ -19,13 +18,7 @@ async function main() {
   if (!accessToken) {
     const email = getEnv("SUPABASE_TEST_EMAIL");
     const password = getEnv("SUPABASE_TEST_PASSWORD");
-    const client = createClient(url, anonKey, { auth: { persistSession: false } });
-    const { data, error } = await client.auth.signInWithPassword({ email, password });
-    if (error || !data.session?.access_token) {
-      console.error("Failed to sign in test user", error);
-      process.exit(1);
-    }
-    accessToken = data.session.access_token;
+    accessToken = await signInWithPassword(url, anonKey, email, password);
   }
   const endpoint = `${url.replace(/\/$/, "")}/functions/v1/ai_chat`;
   console.log(`Invoking ${endpoint}…`);
@@ -48,6 +41,30 @@ async function main() {
 
   console.log("AI chat response:", payload.message);
   console.log("Thread ID:", payload.threadId);
+}
+
+async function signInWithPassword(url, anonKey, email, password) {
+  const res = await fetch(`${url.replace(/\/$/, "")}/auth/v1/token?grant_type=password`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      apikey: anonKey,
+      Authorization: `Bearer ${anonKey}`,
+    },
+    body: JSON.stringify({ email, password }),
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error("Failed to sign in test user", res.status, text);
+    process.exit(1);
+  }
+  const payload = await res.json();
+  const token = payload.access_token;
+  if (!token) {
+    console.error("Sign-in response missing access_token");
+    process.exit(1);
+  }
+  return token;
 }
 
 main().catch((err) => {
